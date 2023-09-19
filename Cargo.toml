@@ -1,0 +1,20 @@
+[package]
+name = "github-backup"
+version = "0.1.0"
+edition = "2021"
+authors = ["Max van der Schee <hello@maxvanderschee.nl>"]
+license = "MIT"
+description = "Program to back up all repositories from GitHub."
+readme = "README.md"
+homepage = "https://github.com/mvdschee/github-backup"
+repository = "https://github.com/you/github-backup"
+keywords = ["cli", "github", "backup"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+chrono = "0.4.31"
+clap = { version = "4.4.4", features = ["derive"] }
+reqwest = "0.11.20"
+serde =  {version = "1.0.188", features = ["derive"] }
+serde_json = "1.0.107"
+tokio = { version = "1.32.0", features = ["macros", "rt-multi-thread"] }
