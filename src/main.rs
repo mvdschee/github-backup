@@ -23,13 +23,24 @@ async fn main() {
         return;
     }
 
-    let repos = match gh::get_personal_repositories_urls(&args.token).await {
-        Ok(repos) => repos,
-        Err(e) => {
-            error!("{}", e);
-            return;
+    let mut page = 1;
+    let mut repos = vec![];
+
+    while repos.len() % 100 == 0 {
+        let mut new_repos = match gh::get_personal_repositories_urls(&args.token, page).await {
+            Ok(repos) => repos,
+            Err(e) => {
+                error!("{}", e);
+                return;
+            }
+        };
+
+        if new_repos.len() == 100 {
+            page += 1;
         }
-    };
+
+        repos.append(&mut new_repos);
+    }
 
     match std::fs::create_dir_all(&args.output) {
         Ok(_) => (),

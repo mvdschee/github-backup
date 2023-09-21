@@ -11,8 +11,9 @@ struct Repo {
 
 pub async fn get_personal_repositories_urls(
     access_token: &String,
+    page: u32,
 ) -> Result<Vec<String>, String> {
-    let url = "https://api.github.com/user/repos?per_page=100&type=owner&page=1&sort=updated";
+    let url = format!("https://api.github.com/user/repos?per_page=100&type=owner&page={}&sort=updated", page);
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -61,7 +62,9 @@ pub async fn get_personal_repositories_urls(
 }
 
 pub async fn download_to_backup(url: String, access_token: &String, output: &String) -> Result<(), String> {
-    info!("Downloading {}", url);
+    let repo_name = url.replace("https://api.github.com/repos/", "");
+    let repo_name = repo_name.replace("/zipball/", "@");
+    info!("Downloading {}", repo_name);
     
     let mut headers = HeaderMap::new();
     headers.insert(

@@ -1,4 +1,4 @@
-prod:
+build:
 	cargo build --release
 test:
 	cargo test -- --nocapture
