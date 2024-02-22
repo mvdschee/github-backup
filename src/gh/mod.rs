@@ -1,7 +1,10 @@
-use serde::{Serialize, Deserialize};
-use std::io::Write;
-use reqwest::{Client, header::{HeaderMap, HeaderValue}};
 use crate::{info, warn};
+use reqwest::{
+    header::{HeaderMap, HeaderValue},
+    Client,
+};
+use serde::{Deserialize, Serialize};
+use std::io::Write;
 
 #[derive(Serialize, Deserialize)]
 struct Repo {
@@ -13,7 +16,10 @@ pub async fn get_personal_repositories_urls(
     access_token: &String,
     page: u32,
 ) -> Result<Vec<String>, String> {
-    let url = format!("https://api.github.com/user/repos?per_page=100&type=owner&page={}&sort=updated", page);
+    let url = format!(
+        "https://api.github.com/user/repos?per_page=100&type=owner&page={}&sort=updated",
+        page
+    );
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -41,9 +47,8 @@ pub async fn get_personal_repositories_urls(
         Err(e) => return Err(format!("{}", e)),
     };
 
-    
     let result: Vec<Repo> = serde_json::from_str(&response).unwrap();
-    
+
     let mut urls = Vec::new();
 
     for repo in result {
@@ -51,7 +56,7 @@ pub async fn get_personal_repositories_urls(
         let branch = repo.default_branch;
 
         let url = url.replace("{archive_format}", "zipball");
-        let url = url.replace("{/ref}",  format!("/{}", branch).as_str());
+        let url = url.replace("{/ref}", format!("/{}", branch).as_str());
 
         urls.push(url);
     }
@@ -61,11 +66,15 @@ pub async fn get_personal_repositories_urls(
     Ok(urls)
 }
 
-pub async fn download_to_backup(url: String, access_token: &String, output: &String) -> Result<(), String> {
+pub async fn download_to_backup(
+    url: String,
+    access_token: &String,
+    output: &String,
+) -> Result<(), String> {
     let repo_name = url.replace("https://api.github.com/repos/", "");
     let repo_name = repo_name.replace("/zipball/", "@");
     info!("Downloading {}", repo_name);
-    
+
     let mut headers = HeaderMap::new();
     headers.insert(
         "Authorization",
@@ -96,11 +105,11 @@ pub async fn download_to_backup(url: String, access_token: &String, output: &Str
             let content_disposition = content_disposition.replace("attachment; filename=", "");
             let content_disposition = content_disposition.replace("\"", "");
             content_disposition
-        },
+        }
         None => {
             warn!("Repository is likely empty, skipping");
 
-            return Ok(())
+            return Ok(());
         }
     };
 
@@ -126,6 +135,6 @@ pub async fn download_to_backup(url: String, access_token: &String, output: &Str
         Ok(_) => (),
         Err(e) => return Err(format!("{}", e)),
     };
-    
+
     Ok(())
 }
