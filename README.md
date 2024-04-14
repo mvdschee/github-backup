@@ -14,6 +14,8 @@ Options:
   -V, --version          Print version
 ```
 
+Optional you can copy over the `.env-example` to `.env` and fill in your personal token.
+
 ## Installation
 
 1. Get a personal token from GitHub: [Settings > Developer Settings > Personal access tokens](https://github.com/settings/tokens?type=beta)

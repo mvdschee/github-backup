@@ -1,62 +1,71 @@
 use clap::Parser;
+use std::env;
 
 mod gh;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// Your personal token from GitHub
-    #[arg(short, long)]
-    token: String,
+	/// Your personal token from GitHub
+	/// or provide a TOKEN environment variable
+	#[arg(short, long, default_value = "")]
+	token: String,
 
-    /// Where to save the repositories
-    #[arg(short, long, default_value = "./backup")]
-    output: String,
+	/// Where to save the repositories
+	#[arg(short, long, default_value = "./backup")]
+	output: String,
 }
 
 #[tokio::main]
 async fn main() {
-    let args = Args::parse();
+	dotenv::dotenv().ok();
 
-    if args.token.is_empty() {
-        error!("You need to provide a token");
-        return;
-    }
+	let args = Args::parse();
 
-    let mut page = 1;
-    let mut repos = vec![];
+	let token = match env::var("TOKEN") {
+		Ok(token) => token,
+		Err(_) => args.token.clone(),
+	};
 
-    while repos.len() % 100 == 0 {
-        let mut new_repos = match gh::get_personal_repositories_urls(&args.token, page).await {
-            Ok(repos) => repos,
-            Err(e) => {
-                error!("{}", e);
-                return;
-            }
-        };
+	if token.is_empty() {
+		error!("You need to provide a token");
+		return;
+	}
 
-        if new_repos.len() == 100 {
-            page += 1;
-        }
+	let mut page = 1;
+	let mut repos = vec![];
 
-        repos.append(&mut new_repos);
-    }
+	//
+	while repos.len() % 100 == 0 {
+		let mut new_repos = match gh::get_personal_repositories_urls(&token, page).await {
+			Ok(repos) => repos,
+			Err(e) => {
+				error!("{}", e);
+				return;
+			}
+		};
 
-    match std::fs::create_dir_all(&args.output) {
-        Ok(_) => (),
-        Err(e) => {
-            error!("{}", e);
-            return;
-        }
-    };
+		if new_repos.len() == 100 {
+			page += 1;
+		}
 
-    for repo in repos {
-        gh::download_to_backup(repo,&args.token, &args.output).await.unwrap();
-    }
+		repos.append(&mut new_repos);
+	}
 
-    info!("Done");
+	match std::fs::create_dir_all(&args.output) {
+		Ok(_) => (),
+		Err(e) => {
+			error!("{}", e);
+			return;
+		}
+	};
+
+	for repo in repos {
+		gh::download_to_backup(repo, &token, &args.output).await.unwrap();
+	}
+
+	info!("Done");
 }
-
 
 #[macro_export]
 macro_rules! info {
