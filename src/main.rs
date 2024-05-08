@@ -35,7 +35,6 @@ async fn main() {
 	let mut page = 1;
 	let mut repos = vec![];
 
-	//
 	while repos.len() % 100 == 0 {
 		let mut new_repos = match gh::get_personal_repositories_urls(&token, page).await {
 			Ok(repos) => repos,

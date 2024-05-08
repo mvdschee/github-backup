@@ -12,26 +12,19 @@ struct Repo {
 	default_branch: String,
 }
 
+static API_URL: &str = "https://api.github.com";
+static HEADER_ACCEPT: &str = "application/vnd.github+json";
+static HEADER_AGENT: &str = "github-backup";
+
 pub async fn get_personal_repositories_urls(
-	access_token: &String,
+	access_token: &str,
 	page: u32,
 ) -> Result<Vec<String>, String> {
-	let url = format!(
-		"https://api.github.com/user/repos?per_page=100&type=owner&page={}&sort=updated",
-		page
-	);
-
-	let mut headers = HeaderMap::new();
-	headers.insert(
-		"Authorization",
-		HeaderValue::from_str(&format!("Bearer {}", access_token)).expect(""),
-	);
-	headers.insert("Accept", HeaderValue::from_str("application/vnd.github+json").expect(""));
-	headers.insert("User-Agent", HeaderValue::from_str("github-backup").expect(""));
+	let url = format!("{}/user/repos?per_page=100&type=owner&page={}&sort=updated", API_URL, page);
 
 	let client = Client::new();
 
-	let response = match client.get(url).headers(headers).send().await {
+	let response = match client.get(url).headers(get_header(access_token)).send().await {
 		Ok(response) => response,
 		Err(e) => return Err(format!("{}", e)),
 	};
@@ -62,31 +55,24 @@ pub async fn get_personal_repositories_urls(
 
 pub async fn download_to_backup(
 	url: String,
-	access_token: &String,
+	access_token: &str,
 	output: &String,
 ) -> Result<(), String> {
-	let repo_name = url.replace("https://api.github.com/repos/", "");
+	let partial_url = format!("{}/repos/", API_URL);
+	let repo_name = url.replace(&partial_url, "");
 	let repo_name = repo_name.replace("/zipball/", "@");
 	info!("Downloading {}", &repo_name);
 
-	let mut headers = HeaderMap::new();
-	headers.insert(
-		"Authorization",
-		HeaderValue::from_str(&format!("Bearer {}", access_token)).expect(""),
-	);
-	headers.insert("Accept", HeaderValue::from_str("application/vnd.github+json").expect(""));
-	headers.insert("User-Agent", HeaderValue::from_str("github-backup").expect(""));
-
 	let client = Client::new();
 
-	let response = match client.get(url).headers(headers.clone()).send().await {
+	let response = match client.get(url).headers(get_header(access_token)).send().await {
 		Ok(response) => response,
 		Err(e) => return Err(format!("{}", e)),
 	};
 
 	let url = response.url().to_string();
 
-	let response = match client.get(url).headers(headers).send().await {
+	let response = match client.get(url).headers(get_header(access_token)).send().await {
 		Ok(response) => response,
 		Err(e) => return Err(format!("{}", e)),
 	};
@@ -113,4 +99,16 @@ pub async fn download_to_backup(
 	};
 
 	Ok(())
+}
+
+fn get_header(access_token: &str) -> HeaderMap {
+	let mut headers = HeaderMap::new();
+	headers.insert(
+		"Authorization",
+		HeaderValue::from_str(&format!("Bearer {}", access_token)).expect(""),
+	);
+	headers.insert("Accept", HeaderValue::from_str(HEADER_ACCEPT).expect(""));
+	headers.insert("User-Agent", HeaderValue::from_str(HEADER_AGENT).expect(""));
+
+	headers
 }
