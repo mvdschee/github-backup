@@ -34,7 +34,10 @@ pub async fn get_personal_repositories_urls(
 		Err(e) => return Err(format!("{}", e)),
 	};
 
-	let result: Vec<Repo> = serde_json::from_str(&response).unwrap();
+	let result: Vec<Repo> = match serde_json::from_str(&response) {
+		Ok(repos) => repos,
+		Err(e) => return Err(format!("{} — raw response: {}", e, response)),
+	};
 
 	let mut urls = Vec::new();
 
@@ -49,6 +52,47 @@ pub async fn get_personal_repositories_urls(
 	}
 
 	info!("Found {} repositories", urls.len());
+
+	Ok(urls)
+}
+
+pub async fn get_org_repositories_urls(
+	access_token: &str,
+	org: &str,
+	page: u32,
+) -> Result<Vec<String>, String> {
+	let url = format!("{}/orgs/{}/repos?per_page=100&type=all&page={}&sort=updated", API_URL, org, page);
+
+	let client = Client::new();
+
+	let response = match client.get(url).headers(get_header(access_token)).send().await {
+		Ok(response) => response,
+		Err(e) => return Err(format!("{}", e)),
+	};
+
+	let response = match response.text().await {
+		Ok(response) => response,
+		Err(e) => return Err(format!("{}", e)),
+	};
+
+	let result: Vec<Repo> = match serde_json::from_str(&response) {
+		Ok(repos) => repos,
+		Err(e) => return Err(format!("{} — raw response: {}", e, response)),
+	};
+
+	let mut urls = Vec::new();
+
+	for repo in result {
+		let url = repo.archive_url;
+		let branch = repo.default_branch;
+
+		let url = url.replace("{archive_format}", "zipball");
+		let url = url.replace("{/ref}", format!("/{}", branch).as_str());
+
+		urls.push(url);
+	}
+
+	info!("Found {} repositories in {}", urls.len(), org);
 
 	Ok(urls)
 }

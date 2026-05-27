@@ -14,6 +14,14 @@ struct Args {
 	/// Where to save the repositories
 	#[arg(short, long, default_value = "./backup")]
 	output: String,
+
+	/// GitHub organisation(s) to back up (repeatable: --org foo --org bar)
+	#[arg(long = "org")]
+	orgs: Vec<String>,
+
+	/// Also back up personal repositories when --org is specified
+	#[arg(long)]
+	personal: bool,
 }
 
 #[tokio::main]
@@ -24,22 +32,47 @@ async fn main() {
 
 	create_output_dir(&args.output);
 
-	let mut page = 1;
 	let mut repos = vec![];
-	while repos.len() % 100 == 0 {
-		let mut new_repos = match gh::get_personal_repositories_urls(&args.token, page).await {
-			Ok(repos) => repos,
-			Err(e) => {
-				error!("{}", e);
-				return;
-			}
-		};
 
-		if new_repos.len() == 100 {
-			page += 1;
+	if args.orgs.is_empty() || args.personal {
+		let mut page = 1;
+		while repos.len() % 100 == 0 {
+			let mut new_repos = match gh::get_personal_repositories_urls(&args.token, page).await {
+				Ok(repos) => repos,
+				Err(e) => {
+					error!("{}", e);
+					return;
+				}
+			};
+
+			if new_repos.len() == 100 {
+				page += 1;
+			}
+
+			repos.append(&mut new_repos);
+		}
+	}
+
+	for org in &args.orgs {
+		let mut page = 1;
+		let mut org_repos = vec![];
+		while org_repos.len() % 100 == 0 {
+			let mut new_repos = match gh::get_org_repositories_urls(&args.token, org, page).await {
+				Ok(repos) => repos,
+				Err(e) => {
+					error!("{}", e);
+					return;
+				}
+			};
+
+			if new_repos.len() == 100 {
+				page += 1;
+			}
+
+			org_repos.append(&mut new_repos);
 		}
 
-		repos.append(&mut new_repos);
+		repos.append(&mut org_repos);
 	}
 
 	for repo in repos {
@@ -67,6 +100,8 @@ fn parse_args_env() -> ParsedArgs {
 	ParsedArgs {
 		token,
 		output: args.output,
+		orgs: args.orgs,
+		personal: args.personal,
 	}
 }
 
@@ -84,6 +119,8 @@ fn create_output_dir(output: &str) {
 pub struct ParsedArgs {
 	pub token: String,
 	pub output: String,
+	pub orgs: Vec<String>,
+	pub personal: bool,
 }
 
 #[macro_export]
